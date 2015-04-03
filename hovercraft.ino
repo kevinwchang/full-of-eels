@@ -1,9 +1,14 @@
-#include <Wire.h> // not used, but Zumo 32U4 libs (which FastGPIO comes from) won't compile without this
+#include <Wire.h> // not used, but Zumo 32U4 libs won't compile without this
 #include <FastGPIO.h>
+#include <Pushbutton.h>
 #include "HovercraftMotors.h"
 #include "LiftMotorBuzzer.h"
 
-#define VBAT_DIV   A1
+#define VBAT_DIV     A1
+#define BUTTON_INPUT A0
+#define BUTTON_GND   11
+
+Pushbutton button(BUTTON_INPUT);
 
 const char warningLowBat[] PROGMEM = "! L32 >e>d>cba8 >e>d>cba8";
 const char welcomeUSB[] PROGMEM = "! O5 L8 ceg";
@@ -31,6 +36,18 @@ void setup()
       // battery ok; USB disconnected
       LiftMotorBuzzer::playFromProgramSpace(welcome);
       ledGreen(1);
+      FastGPIO::Pin<BUTTON_GND>::setOutput(LOW);
+      button.waitForButton();
+      LiftMotorBuzzer::stopPlaying();
+      delay(1000);
+      LiftMotorBuzzer::setSpeed(150);
+      delay(3000);
+      ThrustMotors::init();
+      ThrustMotors::setSpeeds(100, 100);
+      delay(2000);
+      ThrustMotors::setSpeeds(0, 0);
+      delay(1000);
+      LiftMotorBuzzer::setSpeed(0);
     }
   }
 }
@@ -99,10 +116,10 @@ inline boolean vbusPresent()
 
 inline void ledYellow(bool on)
 {
-    FastGPIO::Pin<13>::setOutput(on);
+  FastGPIO::Pin<13>::setOutput(on);
 }
 
 inline void ledGreen(bool on)
 {
-    FastGPIO::Pin<IO_D5>::setOutput(!on);
+  FastGPIO::Pin<IO_D5>::setOutput(!on);
 }
