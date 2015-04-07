@@ -11,10 +11,12 @@
 
 Pushbutton button(BUTTON_INPUT);
 
-QTRSensorsRC lineSensors((unsigned char[]) {4, 3, 2}, 3, 2500, QTR_NO_EMITTER_PIN);
-unsigned int EEMEM storedMinimumOn[3];
-unsigned int EEMEM storedMaximumOn[3];
-unsigned int sensorValues[3];
+#define NUM_SENSORS 6
+
+QTRSensorsRC lineSensors((unsigned char[]) {6, 4, 3, 2, 1, 0}, NUM_SENSORS, 2500, QTR_NO_EMITTER_PIN);
+unsigned int EEMEM storedMinimumOn[NUM_SENSORS];
+unsigned int EEMEM storedMaximumOn[NUM_SENSORS];
+unsigned int sensorValues[NUM_SENSORS];
 
 const char warningLowBat[] PROGMEM = "! L32 >e>d>cba8 >e>d>cba8";
 const char welcomeUSB[] PROGMEM = "! O5 L8 ceg";
@@ -133,84 +135,37 @@ void calibrate()
   while(1)
   {
     unsigned int position = lineSensors.readLine(sensorValues);
-    LiftMotorBuzzer::playFrequency(position / 2 + 500, 150);
+    LiftMotorBuzzer::playFrequency(position / 4 + 300, 150);
     delay(20);
   }
 }
 
 void loop()
 {
-  static boolean cut = false, slowMode = false;
-  static unsigned int cutTime = 0;
-  //LiftMotorBuzzer::setSpeed(125);
-  //ThrustMotors::setSpeeds( -20,  20); return;
+  //ThrustMotors::setSpeeds( -35,  35); return;
   static int lastP = 0;
   
-   int p = 1000 - lineSensors.readLine(sensorValues);
+   int p = 2500 - lineSensors.readLine(sensorValues);
   
   int d = p - lastP;
   
   int diff;
 
-  float boost = 1;//abs(p)/600;
-  int fwd = 20;
-  int bwd = 100;
-  if (slowMode)
-  {
-
+ 
+  int boost = 0;//abs(p)/50;
+  int ct = 20;
   
-   diff = p / 16 + d*4;
-    if (diff < 0)
-    ThrustMotors::setSpeeds(-bwd-diff, -bwd+diff);
+   diff = p / 15+ d*3;
+   diff=max(-75, min(75, diff));
+    int fwd = 25;//+abs(p)/100;//max(100 - (abs(diff)/2), 0);
+    
+    
+  if (diff > 0)
+    ThrustMotors::setSpeeds(fwd-ct-diff+boost, fwd+ct+diff+boost);
   else
-    ThrustMotors::setSpeeds(-bwd-diff, -bwd+diff);
-  }
-  else
-  {
+    ThrustMotors::setSpeeds(fwd-ct-diff+boost, fwd+ct+diff+boost);
 
-  
-   diff = p / 15 + d*7;
-  if (diff < 0)
-    ThrustMotors::setSpeeds(fwd+ boost*-diff, fwd+ boost+diff/2);
-  else
-    ThrustMotors::setSpeeds(fwd+  boost-diff/2, fwd+ boost*+diff);
-  }
   lastP = p;
-  
-  //max(70, 120 - abs(p) / 10));
-  /*if (isBad && !wasBad)
-  {
-    LiftMotorBuzzer::setSpeed(0);
-    ThrustMotors::setSpeeds(0, 0);
-    delay(2000);
-  }*/
-  
-  if (!cut && abs(p) == 1000)
-  {
-    //LiftMotorBuzzer::setSpeed(0);
-    cut = true;
-    slowMode = true;
-    cutTime = millis();
-  }
-  else if (cut && (unsigned int)(millis() - cutTime) > 200)
-  {
-    LiftMotorBuzzer::setSpeed(150);
-    slowMode = false;
-  }
-  if (abs(p) < 500)
-  {
-    cut = false;
-    LiftMotorBuzzer::setSpeed(150);
-    slowMode = false;
-  }
-  ledYellow(slowMode);
-  /*if (sensorValues[0] > 700 && sensorValues[1] > 700 && sensorValues[2] > 700)
-  {
-    LiftMotorBuzzer::setSpeed(0);
-    ThrustMotors::setSpeeds(0, 0);
-    LiftMotorBuzzer::play(uhoh);
-    while(1) {}
-  }*/
 }
 
 /*void loop()
@@ -249,7 +204,7 @@ inline void ledGreen(bool on)
 
 void saveStoredCalibration()
 { 
-  for (uint8_t i = 0; i < 3; i++)
+  for (uint8_t i = 0; i < NUM_SENSORS; i++)
   {
     eeprom_write_word(&storedMinimumOn[i], lineSensors.calibratedMinimumOn[i]);
     eeprom_write_word(&storedMaximumOn[i], lineSensors.calibratedMaximumOn[i]);
@@ -260,7 +215,7 @@ void loadStoredCalibration()
 {
   lineSensors.calibrate(); // allocate stuff
   
-  for (uint8_t i = 0; i < 3; i++)
+  for (uint8_t i = 0; i < NUM_SENSORS; i++)
   {
     lineSensors.calibratedMinimumOn[i] = eeprom_read_word(&storedMinimumOn[i]);
     lineSensors.calibratedMaximumOn[i] = eeprom_read_word(&storedMaximumOn[i]);
