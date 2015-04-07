@@ -20,6 +20,7 @@ const char warningLowBat[] PROGMEM = "! L32 >e>d>cba8 >e>d>cba8";
 const char welcomeUSB[] PROGMEM = "! O5 L8 ceg";
 const char welcomeCalibrate[] PROGMEM = "! L8 cdec";
 const char welcome[] PROGMEM = "a";//"! T240 O3 L8 f# b.f#16b O4 d4.<b4. d.<b16df#4.d4. f#.d16f#a4.<a4. d.<a16df#2";
+const char uhoh[] PROGMEM = "!ec";
   
 void setup()
 {
@@ -58,8 +59,13 @@ void setup()
         loadStoredCalibration();
         button.waitForButton();
         LiftMotorBuzzer::stopPlaying();
-        delay(3000);
+        delay(1000);
+        LiftMotorBuzzer::playNote(NOTE_A(5), 200);
+        delay(1000);
+        LiftMotorBuzzer::playNote(NOTE_A(5), 200);
+        delay(1000);
         ThrustMotors::init();
+        LiftMotorBuzzer::setSpeed(150);
       }
     }
   }
@@ -134,34 +140,77 @@ void calibrate()
 
 void loop()
 {
-  static boolean wasBad = false;
-  //ThrustMotors::setSpeeds( 35,  55); return;
+  static boolean cut = false, slowMode = false;
+  static unsigned int cutTime = 0;
+  //LiftMotorBuzzer::setSpeed(125);
+  //ThrustMotors::setSpeeds( -20,  20); return;
   static int lastP = 0;
-  int p = 1000 - lineSensors.readLine(sensorValues);
-  boolean isBad;
-  if (wasBad)
-    isBad = (abs(p) > 250);
-  else
-    isBad = (abs(p) > 600);
+  
+   int p = 1000 - lineSensors.readLine(sensorValues);
   
   int d = p - lastP;
   
-  int diff = p / 10 + d*5;
-  int boost = abs(p)/30;
-  if (diff < 0)
-    ThrustMotors::setSpeeds( 35+boost-diff,  55+boost);
+  int diff;
+
+  float boost = 1;//abs(p)/600;
+  int fwd = 20;
+  int bwd = 100;
+  if (slowMode)
+  {
+
+  
+   diff = p / 16 + d*4;
+    if (diff < 0)
+    ThrustMotors::setSpeeds(-bwd-diff, -bwd+diff);
   else
-    ThrustMotors::setSpeeds( 35+boost,  55+boost+diff);
+    ThrustMotors::setSpeeds(-bwd-diff, -bwd+diff);
+  }
+  else
+  {
+
+  
+   diff = p / 15 + d*7;
+  if (diff < 0)
+    ThrustMotors::setSpeeds(fwd+ boost*-diff, fwd+ boost+diff/2);
+  else
+    ThrustMotors::setSpeeds(fwd+  boost-diff/2, fwd+ boost*+diff);
+  }
   lastP = p;
   
-  LiftMotorBuzzer::setSpeed(max(120, 150 - abs(p) / 10));
-  if (isBad && !wasBad)
+  //max(70, 120 - abs(p) / 10));
+  /*if (isBad && !wasBad)
   {
     LiftMotorBuzzer::setSpeed(0);
     ThrustMotors::setSpeeds(0, 0);
     delay(2000);
+  }*/
+  
+  if (!cut && abs(p) == 1000)
+  {
+    //LiftMotorBuzzer::setSpeed(0);
+    cut = true;
+    slowMode = true;
+    cutTime = millis();
   }
-  wasBad = isBad;
+  else if (cut && (unsigned int)(millis() - cutTime) > 200)
+  {
+    LiftMotorBuzzer::setSpeed(150);
+    slowMode = false;
+  }
+  if (abs(p) < 500)
+  {
+    cut = false;
+    LiftMotorBuzzer::setSpeed(150);
+    slowMode = false;
+  }
+  ledYellow(slowMode);
+  /*if (sensorValues[0] > 700 && sensorValues[1] > 700 && sensorValues[2] > 700)
+  {
+    LiftMotorBuzzer::setSpeed(0);
+    ThrustMotors::setSpeeds(0, 0);
+    LiftMotorBuzzer::play(uhoh);
+    while(1) {}
+  }*/
 }
 
 /*void loop()
