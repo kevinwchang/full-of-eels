@@ -11,12 +11,17 @@
 
 Pushbutton button(BUTTON_INPUT);
 
-#define NUM_SENSORS 6
+#define FRONT_SENSORS 4
+#define REAR_SENSORS 3
 
-QTRSensorsRC lineSensors((unsigned char[]) {6, 4, 3, 2, 1, 0}, NUM_SENSORS, 2500, QTR_NO_EMITTER_PIN);
-unsigned int EEMEM storedMinimumOn[NUM_SENSORS];
-unsigned int EEMEM storedMaximumOn[NUM_SENSORS];
-unsigned int sensorValues[NUM_SENSORS];
+QTRSensorsRC frontSensors((unsigned char[]) {3, 2, 1, 0}, FRONT_SENSORS, 2500, QTR_NO_EMITTER_PIN);
+QTRSensorsRC rearSensors((unsigned char[]) {4, 12, 6}, REAR_SENSORS, 2500, QTR_NO_EMITTER_PIN);
+unsigned int EEMEM storedFrontMinimumOn[FRONT_SENSORS];
+unsigned int EEMEM storedFrontMaximumOn[FRONT_SENSORS];
+unsigned int EEMEM storedRearMinimumOn[REAR_SENSORS];
+unsigned int EEMEM storedRearMaximumOn[REAR_SENSORS];
+unsigned int frontSensorValues[FRONT_SENSORS];
+unsigned int rearSensorValues[REAR_SENSORS];
 
 const char warningLowBat[] PROGMEM = "! L32 >e>d>cba8 >e>d>cba8";
 const char welcomeUSB[] PROGMEM = "! O5 L8 ceg";
@@ -123,19 +128,34 @@ void blinkForever()
 
 void calibrate()
 {
+  boolean playFront = true;
+  unsigned int position;
+  
   button.waitForRelease();
   button.waitForButton();
   
   while (!button.getSingleDebouncedPress())
   {
-    lineSensors.calibrate();
+    frontSensors.calibrate();
+    rearSensors.calibrate();
     ledYellow(millis() & 1 << 8);
   }
   saveStoredCalibration();
   while(1)
   {
-    unsigned int position = lineSensors.readLine(sensorValues);
-    LiftMotorBuzzer::playFrequency(position / 4 + 300, 150);
+    if (button.getSingleDebouncedPress())
+      playFront = !playFront;
+      
+    if (playFront)
+    {
+      position = frontSensors.readLine(frontSensorValues);
+      LiftMotorBuzzer::playFrequency(position / 4 + 300, 150);
+    }
+    else
+    {
+      position = rearSensors.readLine(rearSensorValues);
+      LiftMotorBuzzer::playFrequency(position / 2 + 200, 150);
+    }
     delay(20);
   }
 }
@@ -143,35 +163,46 @@ void calibrate()
 void loop()
 {
   //ThrustMotors::setSpeeds( -35,  35); return;
-  static int lastP = 0;
   
-   int p = 2500 - lineSensors.readLine(sensorValues);
+  static int lastRotP = 0, lastPosP = 0;
   
-  int d = p - lastP;
+  int frontP = 1500 - frontSensors.readLine(frontSensorValues);
+  int rearP = 1000 - rearSensors.readLine(rearSensorValues);
   
-  int diff;
+  int rotP = max(-500, min(500, frontP)) - max(-500, min(500, rearP));
+  int rotD = rotP - lastRotP;
+  
+  int posP = (frontP + rearP) / 2;
+  int posD = posP - lastPosP;
+
 
  
   int boost = 0;//abs(p)/50;
   int ct = 20;
   
-   diff = p / 15+ d*3;
-   diff=max(-75, min(75, diff));
-    int fwd = 25;//+abs(p)/100;//max(100 - (abs(diff)/2), 0);
-    
-    
-  if (diff > 0)
-    ThrustMotors::setSpeeds(fwd-ct-diff+boost, fwd+ct+diff+boost);
-  else
-    ThrustMotors::setSpeeds(fwd-ct-diff+boost, fwd+ct+diff+boost);
+  int rotDiff = rotP / 10 + rotD*5;
+  int posDiff = posP / 10 + posD*5;
 
-  lastP = p;
+    int fwd = 50-abs(frontP) / 25;
+    fwd = max(0, fwd);
+    
+    
+  if (posDiff < 0)
+    ThrustMotors::setSpeeds(fwd-ct-posDiff-rotDiff-boost, fwd+ct+rotDiff+boost);
+  else
+    ThrustMotors::setSpeeds(fwd-ct-rotDiff+boost, fwd+ct+posDiff+rotDiff+boost);
+
+  lastRotP = rotP;
+  lastPosP = posP;
+  Serial.print(rotP);
+  Serial.print('\t');
+ Serial.println(posP);
 }
 
 /*void loop()
 {
   static int lastP = 0;
-  int p = (1000 - lineSensors.readLine(sensorValues));
+  int p = (1000 - frontSensors.readLine(frontSensorValues));
   int d = p - lastP;
   
   int diff = p;// + d*10;
@@ -204,20 +235,32 @@ inline void ledGreen(bool on)
 
 void saveStoredCalibration()
 { 
-  for (uint8_t i = 0; i < NUM_SENSORS; i++)
+  for (uint8_t i = 0; i < FRONT_SENSORS; i++)
   {
-    eeprom_write_word(&storedMinimumOn[i], lineSensors.calibratedMinimumOn[i]);
-    eeprom_write_word(&storedMaximumOn[i], lineSensors.calibratedMaximumOn[i]);
+    eeprom_write_word(&storedFrontMinimumOn[i], frontSensors.calibratedMinimumOn[i]);
+    eeprom_write_word(&storedFrontMaximumOn[i], frontSensors.calibratedMaximumOn[i]);
+  }
+  
+  for (uint8_t i = 0; i < REAR_SENSORS; i++)
+  {
+    eeprom_write_word(&storedRearMinimumOn[i], rearSensors.calibratedMinimumOn[i]);
+    eeprom_write_word(&storedRearMaximumOn[i], rearSensors.calibratedMaximumOn[i]);
   }
 }
 
 void loadStoredCalibration()
 {
-  lineSensors.calibrate(); // allocate stuff
+  frontSensors.calibrate(); // allocate stuff
+  rearSensors.calibrate();
   
-  for (uint8_t i = 0; i < NUM_SENSORS; i++)
+  for (uint8_t i = 0; i < FRONT_SENSORS; i++)
   {
-    lineSensors.calibratedMinimumOn[i] = eeprom_read_word(&storedMinimumOn[i]);
-    lineSensors.calibratedMaximumOn[i] = eeprom_read_word(&storedMaximumOn[i]);
+    frontSensors.calibratedMinimumOn[i] = eeprom_read_word(&storedFrontMinimumOn[i]);
+    frontSensors.calibratedMaximumOn[i] = eeprom_read_word(&storedFrontMaximumOn[i]);
+  }
+   for (uint8_t i = 0; i < FRONT_SENSORS; i++)
+  {
+    rearSensors.calibratedMinimumOn[i] = eeprom_read_word(&storedRearMinimumOn[i]);
+    rearSensors.calibratedMaximumOn[i] = eeprom_read_word(&storedRearMaximumOn[i]);
   }
 }
