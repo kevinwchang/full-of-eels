@@ -169,7 +169,7 @@ void loop()
   int frontP = 1500 - frontSensors.readLine(frontSensorValues);
   int rearP = 1000 - rearSensors.readLine(rearSensorValues);
   
-  int rotP = max(-500, min(500, frontP)) - max(-500, min(500, rearP));
+  int rotP = frontP;//max(-500, min(500, frontP)) - max(-250, min(250, rearP));
   int rotD = rotP - lastRotP;
   
   int posP = (frontP + rearP) / 2;
@@ -178,19 +178,18 @@ void loop()
 
  
   int boost = 0;//abs(p)/50;
-  int ct = 20;
+  int ct = 0;
   
-  int rotDiff = rotP / 10 + rotD*5;
-  int posDiff = posP / 10 + posD*5;
+  int rotDiff = rotP / 25+ rotD*3;
+  int posDiff = 0;//posP / 10 + posD*5;
 
-    int fwd = 50-abs(frontP) / 25;
-    fwd = max(0, fwd);
+    int fwd = abs(rearP)/10;
     
     
-  if (posDiff < 0)
-    ThrustMotors::setSpeeds(fwd-ct-posDiff-rotDiff-boost, fwd+ct+rotDiff+boost);
+  if (rotDiff < 0)
+    ThrustMotors::setSpeeds(fwd-ct-rotDiff+boost, fwd+ct+rotDiff+boost);
   else
-    ThrustMotors::setSpeeds(fwd-ct-rotDiff+boost, fwd+ct+posDiff+rotDiff+boost);
+    ThrustMotors::setSpeeds(fwd-ct-rotDiff+boost, fwd+ct+rotDiff+boost);
 
   lastRotP = rotP;
   lastPosP = posP;
