@@ -72,7 +72,7 @@ void setup()
         LiftMotorBuzzer::playNote(NOTE_A(5), 200);
         delay(1000);
         ThrustMotors::init();
-        LiftMotorBuzzer::setSpeed(150);
+        LiftMotorBuzzer::setSpeed(200);
       }
     }
   }
@@ -161,41 +161,41 @@ void calibrate()
 }
 
 void loop()
-{
+{//return;
+  boolean slow = false;
   //ThrustMotors::setSpeeds( -35,  35); return;
   
-  static int lastRotP = 0, lastPosP = 0;
+  static int lastP = 0;
   
-  int frontP = 1500 - frontSensors.readLine(frontSensorValues);
-  int rearP = 1000 - rearSensors.readLine(rearSensorValues);
+  int p = 1500 - frontSensors.readLine(frontSensorValues);
   
-  int rotP = frontP;//max(-500, min(500, frontP)) - max(-250, min(250, rearP));
-  int rotD = rotP - lastRotP;
+  int d = p - lastP;
   
-  int posP = (frontP + rearP) / 2;
-  int posD = posP - lastPosP;
+ if (abs(p) > 500)
+    slow = true;
+  
+  
+  int diff, fwd;
+  
 
-
- 
-  int boost = 0;//abs(p)/50;
-  int ct = 0;
-  
-  int rotDiff = rotP / 25+ rotD*3;
-  int posDiff = 0;//posP / 10 + posD*5;
-
-    int fwd = abs(rearP)/10;
+    diff = p / 20+ d*5;
+    fwd = 160 - abs(p / 20);
+float boost = 1;
+    //float boost = 1+(float)p / 500;
+    //boost = min(2, boost);
     
-    
-  if (rotDiff < 0)
-    ThrustMotors::setSpeeds(fwd-ct-rotDiff+boost, fwd+ct+rotDiff+boost);
+  if (diff < 0)
+    ThrustMotors::setSpeeds((fwd-diff)*boost, (fwd+diff)*boost);
   else
-    ThrustMotors::setSpeeds(fwd-ct-rotDiff+boost, fwd+ct+rotDiff+boost);
+    ThrustMotors::setSpeeds((fwd-diff)*boost, (fwd+diff)*boost);
 
-  lastRotP = rotP;
-  lastPosP = posP;
-  Serial.print(rotP);
+  lastP = p;
+  /*Serial.print(rotP);
   Serial.print('\t');
- Serial.println(posP);
+ Serial.println(posP);*/
+ int ls = 350 - p;// * 9 / 10;
+ ls = max(0, ls);
+ LiftMotorBuzzer::setSpeed(180);
 }
 
 /*void loop()
