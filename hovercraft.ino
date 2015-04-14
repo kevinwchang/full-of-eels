@@ -73,6 +73,8 @@ void setup()
         delay(1000);
         ThrustMotors::init();
         LiftMotorBuzzer::setSpeed(200);
+        ThrustMotors::setSpeeds(300, 300);
+        delay(200);
       }
     }
   }
@@ -179,7 +181,7 @@ void loop()
   
 
     diff = p / 25+d*5;
-    fwd = 160 - abs(p)/30;
+    fwd = 150 - abs(p)/50;
     float boost = 1;
     //float boost = 1+(float)p / 500;
     //boost = min(2, boost);
