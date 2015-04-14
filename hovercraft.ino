@@ -178,8 +178,8 @@ void loop()
   int diff, fwd;
   
 
-    diff = p / 20+d*10;
-    fwd = 180 - abs(p)/30;
+    diff = p / 25+d*5;
+    fwd = 160 - abs(p)/30;
     float boost = 1;
     //float boost = 1+(float)p / 500;
     //boost = min(2, boost);
