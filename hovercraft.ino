@@ -178,8 +178,8 @@ void loop()
   int diff, fwd;
   
 
-    diff = p / 20+d*5;
-    fwd = 180-abs(p)/30;
+    diff = p / 20+d*10;
+    fwd = 180 - abs(p)/30;
     float boost = 1;
     //float boost = 1+(float)p / 500;
     //boost = min(2, boost);
@@ -196,7 +196,7 @@ void loop()
  int ls = 350 - p;// * 9 / 10;
  ls = max(0, ls);
  boolean burst = (((millis() >> 4) & 0b1100) == 0b1100);
- LiftMotorBuzzer::setSpeed(50+300 * burst);
+ LiftMotorBuzzer::setSpeed(400 * burst);
  ledYellow(burst);  
 }
 
