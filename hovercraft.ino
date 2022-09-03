@@ -28,6 +28,8 @@ const char welcomeUSB[] PROGMEM = "! O5 L8 ceg";
 const char welcomeCalibrate[] PROGMEM = "! L8 cdec";
 const char welcome[] PROGMEM = "a";//"! T240 O3 L8 f# b.f#16b O4 d4.<b4. d.<b16df#4.d4. f#.d16f#a4.<a4. d.<a16df#2";
 const char uhoh[] PROGMEM = "!ec";
+
+float boost = 1;
   
 void setup()
 {
@@ -37,7 +39,7 @@ void setup()
   ledYellow(0);
   LiftMotorBuzzer::init();
   
-  if (batteryLow())
+  if (battery() < 3650)
   {
     LiftMotorBuzzer::playFromProgramSpace(warningLowBat);
     blinkForever();
@@ -72,9 +74,7 @@ void setup()
         LiftMotorBuzzer::playNote(NOTE_A(5), 200);
         delay(1000);
         ThrustMotors::init();
-        LiftMotorBuzzer::setSpeed(200);
-        ThrustMotors::setSpeeds(300, 300);
-        delay(200);
+        boost = (float)3650/battery();
       }
     }
   }
@@ -84,7 +84,7 @@ void blinkForever()
 {
   while (1)
   {
-    if (batteryLow())
+    if (battery() < 3650)
     {
       if (vbusPresent())
       {
@@ -181,8 +181,8 @@ void loop()
   
 
     diff = p / 25+d*5;
-    fwd = 150 - abs(p)/50;
-    float boost = 1;
+    fwd = 140 - abs(p)/50;
+    
     //float boost = 1+(float)p / 500;
     //boost = min(2, boost);
     
@@ -197,7 +197,7 @@ void loop()
  Serial.println(posP);*/
  int ls = 350 - p;// * 9 / 10;
  ls = max(0, ls);
- boolean burst = (((millis() >> 4) & 0b1100) == 0b1100);
+ boolean burst = (((millis() >> 3) & 0b1100) == 0b1100);
  LiftMotorBuzzer::setSpeed(400 * burst);
  ledYellow(burst);  
 }
@@ -216,9 +216,9 @@ void loop()
   lastP = p;
 }*/
 
-inline boolean batteryLow()
+inline unsigned int battery()
 {
-  return ((unsigned long)analogRead(VBAT_DIV) * 2 * 3300 / 1023) < 3650;
+  return ((unsigned long)analogRead(VBAT_DIV) * 2 * 3300 / 1023);
 }
 
 inline boolean vbusPresent()
